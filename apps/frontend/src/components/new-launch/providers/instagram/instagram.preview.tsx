@@ -14,18 +14,23 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 interface PreviewAudio {
   title?: string;
   artist?: string;
+  image?: string;
   previewUrl?: string;
   audio_volume?: number;
   video_volume?: number;
 }
 
-const ReelIcon: FC<{ d: string }> = ({ d }) => (
+const ReelIcon: FC<{ d: string; size?: number; fill?: string }> = ({
+  d,
+  size = 26,
+  fill = 'none',
+}) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    width="26"
-    height="26"
+    width={size}
+    height={size}
     viewBox="0 0 24 24"
-    fill="none"
+    fill={fill}
     stroke="currentColor"
     strokeWidth="1.8"
     strokeLinecap="round"
@@ -33,6 +38,13 @@ const ReelIcon: FC<{ d: string }> = ({ d }) => (
   >
     <path d={d} />
   </svg>
+);
+
+const ReelAction: FC<{ d: string }> = ({ d }) => (
+  <div className="flex flex-col items-center gap-[2px] text-[12px]">
+    <ReelIcon d={d} />
+    <div>0</div>
+  </div>
 );
 
 const ReelFeedPreview: FC<{
@@ -46,6 +58,7 @@ const ReelFeedPreview: FC<{
   const video = useRef<HTMLVideoElement>(null);
   const music = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
   const hasSong = !!audio?.previewUrl;
 
   const stop = useCallback(() => {
@@ -89,9 +102,9 @@ const ReelFeedPreview: FC<{
   }, [playing, stop]);
 
   return (
-    <div className="flex flex-col gap-[6px] w-full">
+    <div className="flex flex-col gap-[6px] w-full items-center">
       <div
-        className="relative w-full aspect-[9/16] max-h-[585px] bg-black rounded-[12px] overflow-hidden text-white cursor-pointer"
+        className="relative w-full max-w-[340px] aspect-[9/16] max-h-[640px] bg-black rounded-[24px] overflow-hidden text-white cursor-pointer"
         onClick={toggle}
       >
         <video
@@ -99,12 +112,36 @@ const ReelFeedPreview: FC<{
           src={src}
           className="absolute inset-0 w-full h-full object-cover"
           playsInline={true}
-          onEnded={stop}
+          onEnded={() => {
+            stop();
+            setProgress(0);
+          }}
+          onTimeUpdate={(e) =>
+            setProgress(
+              e.currentTarget.duration
+                ? e.currentTarget.currentTime / e.currentTarget.duration
+                : 0
+            )
+          }
         />
         {hasSong && (
           <audio ref={music} src={audio?.previewUrl} onEnded={stop} />
         )}
-        <div className="absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 top-0 h-[90px] bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+
+        <div className="absolute inset-x-0 top-[14px] px-[14px] flex items-center justify-between pointer-events-none">
+          <ReelIcon d="M12 5v14M5 12h14" size={28} />
+          <div className="flex items-center gap-[14px] text-[17px] font-[700]">
+            <div className="flex items-center gap-[4px]">
+              <span>Reels</span>
+              <ReelIcon d="M6 9l6 6 6-6" size={14} />
+            </div>
+            <div className="opacity-60">Friends</div>
+          </div>
+          <ReelIcon d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M6 14v6" size={24} />
+        </div>
+
         {!playing && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="w-[56px] h-[56px] rounded-full bg-black/50 flex items-center justify-center">
@@ -114,20 +151,31 @@ const ReelFeedPreview: FC<{
             </div>
           </div>
         )}
-        <div className="absolute right-[10px] bottom-[16px] flex flex-col items-center gap-[18px] pointer-events-none">
-          <ReelIcon d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z" />
-          <ReelIcon d="M21 12a8 8 0 0 1-11.5 7.2L3 21l1.8-6A8 8 0 1 1 21 12z" />
-          <ReelIcon d="M22 3L2 10l8 3 3 8 9-18z" />
-          <ReelIcon d="M12 6h.01M12 12h.01M12 18h.01" />
+
+        <div className="absolute right-[10px] bottom-[96px] flex flex-col items-center gap-[16px] pointer-events-none">
+          <ReelAction d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z" />
+          <ReelAction d="M21 12a8 8 0 0 1-11.5 7.2L3 21l1.8-6A8 8 0 1 1 21 12z" />
+          <ReelAction d="M17 2l4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 0 1-3 3H3" />
+          <ReelAction d="M22 3L2 10l8 3 3 8 9-18z" />
+          <ReelIcon d="M4 9h16M4 15h16" />
+          <img
+            src={audio?.previewUrl && audio.image ? audio.image : avatar}
+            alt="audio"
+            className="w-[28px] h-[28px] rounded-[6px] border-2 border-white object-cover"
+          />
         </div>
-        <div className="absolute left-[12px] right-[56px] bottom-[16px] flex flex-col gap-[8px] pointer-events-none">
-          <div className="flex items-center gap-[8px]">
+
+        <div className="absolute left-[14px] right-[64px] bottom-[96px] flex flex-col gap-[8px] pointer-events-none">
+          <div className="flex items-center gap-[10px]">
             <img
               src={avatar}
               alt="social"
-              className="w-[30px] h-[30px] rounded-full object-cover"
+              className="w-[34px] h-[34px] rounded-full object-cover border-2 border-white"
             />
-            <div className="text-[14px] font-[600]">{name}</div>
+            <div className="text-[14px] font-[600] truncate">{name}</div>
+            <div className="border border-white/70 rounded-[8px] px-[12px] py-[2px] text-[13px] font-[600]">
+              {t('instagram_preview_follow', 'Follow')}
+            </div>
           </div>
           {!!caption && (
             <div
@@ -138,24 +186,36 @@ const ReelFeedPreview: FC<{
             </div>
           )}
           <div className="flex items-center gap-[6px] text-[12px]">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm12-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3z" />
-            </svg>
+            <ReelIcon
+              d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm12-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3z"
+              size={14}
+            />
             <div className="truncate">
               {hasSong
                 ? [audio?.title, audio?.artist].filter((f) => f).join(' · ')
                 : t('instagram_preview_original_audio', 'Original audio')}
             </div>
           </div>
+        </div>
+
+        <div className="absolute inset-x-[14px] bottom-[84px] h-[2px] bg-white/30 pointer-events-none">
+          <div
+            className="h-full bg-white"
+            style={{ width: `${Math.round(progress * 100)}%` }}
+          />
+        </div>
+
+        <div className="absolute inset-x-[14px] bottom-[12px] h-[56px] rounded-full bg-black/45 backdrop-blur flex items-center justify-around pointer-events-none">
+          <ReelIcon d="M3 11l9-8 9 8v10h-6v-6H9v6H3z" />
+          <div className="h-[44px] w-[64px] rounded-full bg-white/25 flex items-center justify-center">
+            <ReelIcon
+              d="M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zM10 9l5 3-5 3z"
+              fill="white"
+            />
+          </div>
+          <ReelIcon d="M22 3L2 10l8 3 3 8 9-18z" />
+          <ReelIcon d="M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM21 21l-5-5" />
+          <ReelIcon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0z" />
         </div>
       </div>
       <div className="text-[11px] opacity-70 text-center">
