@@ -21,6 +21,7 @@ interface SelectedAudio {
   title?: string;
   artist?: string;
   image?: string;
+  previewUrl?: string;
   audio_volume?: number;
   video_volume?: number;
 }
@@ -146,6 +147,7 @@ export const InstagramAudioSelector: FC<{
         title: audio.title,
         artist: audio.artist,
         image: audio.image,
+        previewUrl: audio.previewUrl,
         audio_volume: 100,
         video_volume: 100,
       });

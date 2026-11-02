@@ -35,6 +35,10 @@ export class InstagramAudio {
   image?: string;
 
   @IsOptional()
+  @IsString()
+  previewUrl?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)

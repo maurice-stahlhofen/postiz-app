@@ -3,9 +3,90 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
-import { FC } from 'react';
+import { FC, useCallback, useEffect, useRef, useState } from 'react';
+import { useWatch } from 'react-hook-form';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { SliderComponent } from '@gitroom/frontend/components/third-parties/slider.component';
+import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
+import { hasExtension } from '@gitroom/helpers/utils/has.extension';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+
+interface PreviewAudio {
+  previewUrl?: string;
+  audio_volume?: number;
+  video_volume?: number;
+}
+
+const ReelAudioPreview: FC<{
+  src: string;
+  audio: PreviewAudio & { previewUrl: string };
+}> = ({ src, audio }) => {
+  const t = useT();
+  const video = useRef<HTMLVideoElement>(null);
+  const music = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+
+  const stop = useCallback(() => {
+    video.current?.pause();
+    music.current?.pause();
+    setPlaying(false);
+  }, []);
+
+  useEffect(() => {
+    if (video.current) {
+      video.current.volume = (audio.video_volume ?? 100) / 100;
+    }
+    if (music.current) {
+      music.current.volume = (audio.audio_volume ?? 100) / 100;
+    }
+  }, [audio.audio_volume, audio.video_volume]);
+
+  useEffect(() => stop, [src, audio.previewUrl]);
+
+  const toggle = useCallback(async () => {
+    if (!video.current || !music.current) {
+      return;
+    }
+    if (playing) {
+      stop();
+      return;
+    }
+    video.current.currentTime = 0;
+    music.current.currentTime = 0;
+    try {
+      await Promise.all([video.current.play(), music.current.play()]);
+      setPlaying(true);
+    } catch (err) {
+      stop();
+    }
+  }, [playing, stop]);
+
+  return (
+    <div className="relative w-full h-full cursor-pointer" onClick={toggle}>
+      <video
+        ref={video}
+        src={src}
+        className="w-full h-full"
+        playsInline={true}
+        onEnded={stop}
+      />
+      <audio ref={music} src={audio.previewUrl} onEnded={stop} />
+      <div className="absolute bottom-[8px] left-[8px] right-[8px] flex flex-col items-center gap-[4px] text-[12px] text-white drop-shadow">
+        <div>
+          {playing
+            ? t('instagram_preview_stop', 'Stop')
+            : t('instagram_preview_play_with_audio', 'Play with audio')}
+        </div>
+        <div className="opacity-80">
+          {t(
+            'instagram_preview_audio_approximate',
+            'Approximate mix, Instagram creates the final audio'
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const InstagramPreview: FC<{
   maximumCharacters?: number;
@@ -13,6 +94,10 @@ export const InstagramPreview: FC<{
   const { value: topValue, integration } = useIntegration();
   const current = useLaunchStore((state) => state.current);
   const mediaDir = useMediaDirectory();
+  const { control } = useSettings();
+  const audio = useWatch({ control, name: 'audio' }) as
+    | PreviewAudio
+    | undefined;
 
   const renderContent = topValue.map((p) => {
     const newContent = stripHtmlValidation(
@@ -65,16 +150,27 @@ export const InstagramPreview: FC<{
       {!!renderContent?.[0]?.images?.length ? (
         <SliderComponent
           className="h-[585px] rounded-[8px] overflow-hidden"
-          list={renderContent?.[0]?.images.map((image, index) => (
-            <a
-              key={`image_${index}`}
-              className="flex-1"
-              href={mediaDir.set(image.path)}
-              target="_blank"
-            >
-              <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
-            </a>
-          ))}
+          list={renderContent?.[0]?.images.map((image, index) =>
+            index === 0 &&
+            !!audio?.previewUrl &&
+            hasExtension(image.path, 'mp4') ? (
+              <div key={`image_${index}`} className="flex-1">
+                <ReelAudioPreview
+                  src={mediaDir.set(image.path)}
+                  audio={{ ...audio, previewUrl: audio.previewUrl }}
+                />
+              </div>
+            ) : (
+              <a
+                key={`image_${index}`}
+                className="flex-1"
+                href={mediaDir.set(image.path)}
+                target="_blank"
+              >
+                <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
+              </a>
+            )
+          )}
         />
       ) : (
         <div
