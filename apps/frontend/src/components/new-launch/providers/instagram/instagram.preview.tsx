@@ -12,19 +12,41 @@ import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 interface PreviewAudio {
+  title?: string;
+  artist?: string;
   previewUrl?: string;
   audio_volume?: number;
   video_volume?: number;
 }
 
-const ReelAudioPreview: FC<{
+const ReelIcon: FC<{ d: string }> = ({ d }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="26"
+    height="26"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d={d} />
+  </svg>
+);
+
+const ReelFeedPreview: FC<{
   src: string;
-  audio: PreviewAudio & { previewUrl: string };
-}> = ({ src, audio }) => {
+  audio?: PreviewAudio;
+  avatar: string;
+  name: string;
+  caption: string;
+}> = ({ src, audio, avatar, name, caption }) => {
   const t = useT();
   const video = useRef<HTMLVideoElement>(null);
   const music = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const hasSong = !!audio?.previewUrl;
 
   const stop = useCallback(() => {
     video.current?.pause();
@@ -34,17 +56,17 @@ const ReelAudioPreview: FC<{
 
   useEffect(() => {
     if (video.current) {
-      video.current.volume = (audio.video_volume ?? 100) / 100;
+      video.current.volume = hasSong ? (audio?.video_volume ?? 100) / 100 : 1;
     }
     if (music.current) {
-      music.current.volume = (audio.audio_volume ?? 100) / 100;
+      music.current.volume = (audio?.audio_volume ?? 100) / 100;
     }
-  }, [audio.audio_volume, audio.video_volume]);
+  }, [hasSong, audio?.audio_volume, audio?.video_volume]);
 
-  useEffect(() => stop, [src, audio.previewUrl]);
+  useEffect(() => stop, [src, audio?.previewUrl]);
 
   const toggle = useCallback(async () => {
-    if (!video.current || !music.current) {
+    if (!video.current) {
       return;
     }
     if (playing) {
@@ -52,9 +74,14 @@ const ReelAudioPreview: FC<{
       return;
     }
     video.current.currentTime = 0;
-    music.current.currentTime = 0;
+    if (music.current) {
+      music.current.currentTime = 0;
+    }
     try {
-      await Promise.all([video.current.play(), music.current.play()]);
+      await Promise.all([
+        video.current.play(),
+        ...(music.current ? [music.current.play()] : []),
+      ]);
       setPlaying(true);
     } catch (err) {
       stop();
@@ -62,27 +89,85 @@ const ReelAudioPreview: FC<{
   }, [playing, stop]);
 
   return (
-    <div className="relative w-full h-full cursor-pointer" onClick={toggle}>
-      <video
-        ref={video}
-        src={src}
-        className="w-full h-full"
-        playsInline={true}
-        onEnded={stop}
-      />
-      <audio ref={music} src={audio.previewUrl} onEnded={stop} />
-      <div className="absolute bottom-[8px] left-[8px] right-[8px] flex flex-col items-center gap-[4px] text-[12px] text-white drop-shadow">
-        <div>
-          {playing
-            ? t('instagram_preview_stop', 'Stop')
-            : t('instagram_preview_play_with_audio', 'Play with audio')}
+    <div className="flex flex-col gap-[6px] w-full">
+      <div
+        className="relative w-full aspect-[9/16] max-h-[585px] bg-black rounded-[12px] overflow-hidden text-white cursor-pointer"
+        onClick={toggle}
+      >
+        <video
+          ref={video}
+          src={src}
+          className="absolute inset-0 w-full h-full object-cover"
+          playsInline={true}
+          onEnded={stop}
+        />
+        {hasSong && (
+          <audio ref={music} src={audio?.previewUrl} onEnded={stop} />
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
+        {!playing && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-[56px] h-[56px] rounded-full bg-black/50 flex items-center justify-center">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        )}
+        <div className="absolute right-[10px] bottom-[16px] flex flex-col items-center gap-[18px] pointer-events-none">
+          <ReelIcon d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z" />
+          <ReelIcon d="M21 12a8 8 0 0 1-11.5 7.2L3 21l1.8-6A8 8 0 1 1 21 12z" />
+          <ReelIcon d="M22 3L2 10l8 3 3 8 9-18z" />
+          <ReelIcon d="M12 6h.01M12 12h.01M12 18h.01" />
         </div>
-        <div className="opacity-80">
-          {t(
-            'instagram_preview_audio_approximate',
-            'Approximate mix, Instagram creates the final audio'
+        <div className="absolute left-[12px] right-[56px] bottom-[16px] flex flex-col gap-[8px] pointer-events-none">
+          <div className="flex items-center gap-[8px]">
+            <img
+              src={avatar}
+              alt="social"
+              className="w-[30px] h-[30px] rounded-full object-cover"
+            />
+            <div className="text-[14px] font-[600]">{name}</div>
+          </div>
+          {!!caption && (
+            <div
+              dir="auto"
+              className="text-[13px] leading-[17px] line-clamp-2 break-words"
+            >
+              {caption}
+            </div>
           )}
+          <div className="flex items-center gap-[6px] text-[12px]">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3zm12-2a3 3 0 1 1-3-3 3 3 0 0 1 3 3z" />
+            </svg>
+            <div className="truncate">
+              {hasSong
+                ? [audio?.title, audio?.artist].filter((f) => f).join(' · ')
+                : t('instagram_preview_original_audio', 'Original audio')}
+            </div>
+          </div>
         </div>
+      </div>
+      <div className="text-[11px] opacity-70 text-center">
+        {hasSong
+          ? t(
+              'instagram_preview_audio_approximate',
+              'Approximate mix, Instagram creates the final audio'
+            )
+          : t(
+              'instagram_preview_reel_approximate',
+              'Approximate preview of the Reel feed'
+            )}
       </div>
     </div>
   );
@@ -98,6 +183,7 @@ export const InstagramPreview: FC<{
   const audio = useWatch({ control, name: 'audio' }) as
     | PreviewAudio
     | undefined;
+  const postType = useWatch({ control, name: 'post_type' });
 
   const renderContent = topValue.map((p) => {
     const newContent = stripHtmlValidation(
@@ -131,8 +217,33 @@ export const InstagramPreview: FC<{
       }) +
       `</mark></span>`;
 
-    return { text: finalValue, images: p.image };
+    return {
+      text: finalValue,
+      images: p.image,
+      plain: p.content
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
+    };
   });
+
+  const firstImages = renderContent?.[0]?.images;
+  if (
+    postType !== 'story' &&
+    firstImages?.length === 1 &&
+    hasExtension(firstImages[0].path, 'mp4')
+  ) {
+    return (
+      <ReelFeedPreview
+        src={mediaDir.set(firstImages[0].path)}
+        audio={audio}
+        avatar={integration?.picture || '/no-picture.jpg'}
+        name={integration?.name || ''}
+        caption={renderContent[0].plain}
+      />
+    );
+  }
+
   return (
     <div className="py-[10px] flex flex-col px-[15px] w-full gap-[10px] bg-bgInstagram rounded-[12px]">
       <div className="flex gap-[10px] items-center">
@@ -150,27 +261,16 @@ export const InstagramPreview: FC<{
       {!!renderContent?.[0]?.images?.length ? (
         <SliderComponent
           className="h-[585px] rounded-[8px] overflow-hidden"
-          list={renderContent?.[0]?.images.map((image, index) =>
-            index === 0 &&
-            !!audio?.previewUrl &&
-            hasExtension(image.path, 'mp4') ? (
-              <div key={`image_${index}`} className="flex-1">
-                <ReelAudioPreview
-                  src={mediaDir.set(image.path)}
-                  audio={{ ...audio, previewUrl: audio.previewUrl }}
-                />
-              </div>
-            ) : (
-              <a
-                key={`image_${index}`}
-                className="flex-1"
-                href={mediaDir.set(image.path)}
-                target="_blank"
-              >
-                <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
-              </a>
-            )
-          )}
+          list={renderContent?.[0]?.images.map((image, index) => (
+            <a
+              key={`image_${index}`}
+              className="flex-1"
+              href={mediaDir.set(image.path)}
+              target="_blank"
+            >
+              <VideoOrImage autoplay={true} src={mediaDir.set(image.path)} />
+            </a>
+          ))}
         />
       ) : (
         <div
